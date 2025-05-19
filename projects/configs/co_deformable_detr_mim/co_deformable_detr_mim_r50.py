@@ -70,7 +70,7 @@ model = dict(
                         embed_dims=256,
                         dropout=0.0,
                     ),
-                    feedforward_channels=2048,
+                    feedforward_channels=1024,
                     ffn_dropout=0.0,
                     operation_order=("self_attn", "norm", "ffn", "norm"),
                 ),
@@ -95,7 +95,7 @@ model = dict(
                             dropout=0.0,
                         ),
                     ],
-                    feedforward_channels=2048,
+                    feedforward_channels=1024,
                     ffn_dropout=0.0,
                     operation_order=(
                         "self_attn",
@@ -185,6 +185,13 @@ model = dict(
             ),
         ),
     ],
+    # MIM head
+    mim_head=dict(
+        type="SimMIMStyleHead",
+        in_channels=256,
+        patch_size=16,
+        loss=dict(type="L1Loss", loss_weight=1.0),
+    ),
     # model training and testing settings
     train_cfg=[
         dict(
@@ -281,13 +288,23 @@ img_norm_cfg = dict(
 # from the default setting in mmdet.
 train_pipeline = [
     dict(type="LoadImageFromFile"),
-    dict(type="LoadAnnotations", with_bbox=True),
+    dict(type="LoadAnnotations", with_bbox=True, with_mask=True),
     dict(type="RandomFlip", flip_ratio=0.5),
     dict(type="Resize", img_scale=(512, 512), keep_ratio=True),
     dict(type="Normalize", **img_norm_cfg),
     dict(type="Pad", size_divisor=32),
+    dict(type="CopyImage", dst_key="clear_image"),
+    dict(type="MaskImage", patch_size=(16, 16), mask_percent=0.4, mask_value=127),
     dict(type="DefaultFormatBundle"),
-    dict(type="Collect", keys=["img", "gt_bboxes", "gt_labels"]),
+    dict(
+        type="Collect",
+        keys=[
+            "img",
+            "clear_image",
+            "gt_bboxes",
+            "gt_labels",
+        ],
+    ),
 ]
 # test_pipeline, NOTE the Pad's size_divisor is different from the default
 # setting (size_divisor=32). While there is little effect on the performance
@@ -303,8 +320,12 @@ test_pipeline = [
             dict(type="RandomFlip"),
             dict(type="Normalize", **img_norm_cfg),
             dict(type="Pad", size_divisor=1),
-            dict(type="ImageToTensor", keys=["img"]),
-            dict(type="Collect", keys=["img"]),
+            dict(type="CopyImage", dst_key="clear_image"),
+            dict(
+                type="MaskImage", patch_size=(16, 16), mask_percent=0.4, mask_value=127
+            ),
+            dict(type="ImageToTensor", keys=["img", "clear_image"]),
+            dict(type="Collect", keys=["img", "clear_image"]),
         ],
     ),
 ]
@@ -316,7 +337,6 @@ data = dict(
     val=dict(pipeline=test_pipeline),
     test=dict(pipeline=test_pipeline),
 )
-# optimizer
 optimizer = dict(
     type="AdamW",
     lr=2e-4,

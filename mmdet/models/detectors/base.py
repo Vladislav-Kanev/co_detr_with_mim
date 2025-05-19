@@ -1,6 +1,7 @@
 # Copyright (c) OpenMMLab. All rights reserved.
 from abc import ABCMeta, abstractmethod
 from collections import OrderedDict
+import os
 
 import mmcv
 import numpy as np
@@ -21,26 +22,28 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
     @property
     def with_neck(self):
         """bool: whether the detector has a neck"""
-        return hasattr(self, 'neck') and self.neck is not None
+        return hasattr(self, "neck") and self.neck is not None
 
     # TODO: these properties need to be carefully handled
     # for both single stage & two stage detectors
     @property
     def with_shared_head(self):
         """bool: whether the detector has a shared head in the RoI Head"""
-        return hasattr(self, 'roi_head') and self.roi_head.with_shared_head
+        return hasattr(self, "roi_head") and self.roi_head.with_shared_head
 
     @property
     def with_bbox(self):
         """bool: whether the detector has a bbox head"""
-        return ((hasattr(self, 'roi_head') and self.roi_head.with_bbox)
-                or (hasattr(self, 'bbox_head') and self.bbox_head is not None))
+        return (hasattr(self, "roi_head") and self.roi_head.with_bbox) or (
+            hasattr(self, "bbox_head") and self.bbox_head is not None
+        )
 
     @property
     def with_mask(self):
         """bool: whether the detector has a mask head"""
-        return ((hasattr(self, 'roi_head') and self.roi_head.with_mask)
-                or (hasattr(self, 'mask_head') and self.mask_head is not None))
+        return (hasattr(self, "roi_head") and self.roi_head.with_mask) or (
+            hasattr(self, "mask_head") and self.mask_head is not None
+        )
 
     @abstractmethod
     def extract_feat(self, imgs):
@@ -77,7 +80,7 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
         # then used for the transformer_head.
         batch_input_shape = tuple(imgs[0].size()[-2:])
         for img_meta in img_metas:
-            img_meta['batch_input_shape'] = batch_input_shape
+            img_meta["batch_input_shape"] = batch_input_shape
 
     async def async_simple_test(self, img, img_metas, **kwargs):
         raise NotImplementedError
@@ -92,14 +95,16 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
         pass
 
     async def aforward_test(self, *, img, img_metas, **kwargs):
-        for var, name in [(img, 'img'), (img_metas, 'img_metas')]:
+        for var, name in [(img, "img"), (img_metas, "img_metas")]:
             if not isinstance(var, list):
-                raise TypeError(f'{name} must be a list, but got {type(var)}')
+                raise TypeError(f"{name} must be a list, but got {type(var)}")
 
         num_augs = len(img)
         if num_augs != len(img_metas):
-            raise ValueError(f'num of augmentations ({len(img)}) '
-                             f'!= num of image metas ({len(img_metas)})')
+            raise ValueError(
+                f"num of augmentations ({len(img)}) "
+                f"!= num of image metas ({len(img_metas)})"
+            )
         # TODO: remove the restriction of samples_per_gpu == 1 when prepared
         samples_per_gpu = img[0].size(0)
         assert samples_per_gpu == 1
@@ -119,14 +124,16 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
                 augs (multiscale, flip, etc.) and the inner list indicates
                 images in a batch.
         """
-        for var, name in [(imgs, 'imgs'), (img_metas, 'img_metas')]:
+        for var, name in [(imgs, "imgs"), (img_metas, "img_metas")]:
             if not isinstance(var, list):
-                raise TypeError(f'{name} must be a list, but got {type(var)}')
+                raise TypeError(f"{name} must be a list, but got {type(var)}")
 
         num_augs = len(imgs)
         if num_augs != len(img_metas):
-            raise ValueError(f'num of augmentations ({len(imgs)}) '
-                             f'!= num of image meta ({len(img_metas)})')
+            raise ValueError(
+                f"num of augmentations ({len(imgs)}) "
+                f"!= num of image meta ({len(img_metas)})"
+            )
 
         # NOTE the batched image size information may be useful, e.g.
         # in DETR, this is needed for the construction of masks, which is
@@ -134,7 +141,7 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
         for img, img_meta in zip(imgs, img_metas):
             batch_size = len(img_meta)
             for img_id in range(batch_size):
-                img_meta[img_id]['batch_input_shape'] = tuple(img.size()[-2:])
+                img_meta[img_id]["batch_input_shape"] = tuple(img.size()[-2:])
 
         if num_augs == 1:
             # proposals (List[List[Tensor]]): the outer list indicates
@@ -142,18 +149,20 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
             # indicates images in a batch.
             # The Tensor should have a shape Px4, where P is the number of
             # proposals.
-            if 'proposals' in kwargs:
-                kwargs['proposals'] = kwargs['proposals'][0]
+            if "proposals" in kwargs:
+                kwargs["proposals"] = kwargs["proposals"][0]
             return self.simple_test(imgs[0], img_metas[0], **kwargs)
         else:
-            assert imgs[0].size(0) == 1, 'aug test does not support ' \
-                                         'inference with batch size ' \
-                                         f'{imgs[0].size(0)}'
+            assert imgs[0].size(0) == 1, (
+                "aug test does not support "
+                "inference with batch size "
+                f"{imgs[0].size(0)}"
+            )
             # TODO: support test augmentation for predefined proposals
-            assert 'proposals' not in kwargs
+            assert "proposals" not in kwargs
             return self.aug_test(imgs, img_metas, **kwargs)
 
-    @auto_fp16(apply_to=('img', ))
+    @auto_fp16(apply_to=("img",))
     def forward(self, img, img_metas, return_loss=True, **kwargs):
         """Calls either :func:`forward_train` or :func:`forward_test` depending
         on whether ``return_loss`` is ``True``.
@@ -192,23 +201,25 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
             elif isinstance(loss_value, list):
                 log_vars[loss_name] = sum(_loss.mean() for _loss in loss_value)
             else:
-                raise TypeError(
-                    f'{loss_name} is not a tensor or list of tensors')
+                raise TypeError(f"{loss_name} is not a tensor or list of tensors")
 
-        loss = sum(_value for _key, _value in log_vars.items()
-                   if 'loss' in _key)
+        loss = sum(_value for _key, _value in log_vars.items() if "loss" in _key)
 
         # If the loss_vars has different length, GPUs will wait infinitely
         if dist.is_available() and dist.is_initialized():
             log_var_length = torch.tensor(len(log_vars), device=loss.device)
             dist.all_reduce(log_var_length)
-            message = (f'rank {dist.get_rank()}' +
-                       f' len(log_vars): {len(log_vars)}' + ' keys: ' +
-                       ','.join(log_vars.keys()))
-            assert log_var_length == len(log_vars) * dist.get_world_size(), \
-                'loss log variables are different across GPUs!\n' + message
+            message = (
+                f"rank {dist.get_rank()}"
+                + f" len(log_vars): {len(log_vars)}"
+                + " keys: "
+                + ",".join(log_vars.keys())
+            )
+            assert log_var_length == len(log_vars) * dist.get_world_size(), (
+                "loss log variables are different across GPUs!\n" + message
+            )
 
-        log_vars['loss'] = loss
+        log_vars["loss"] = loss
         for loss_name, loss_value in log_vars.items():
             # reduce loss when distributed training
             if dist.is_available() and dist.is_initialized():
@@ -248,8 +259,7 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
         losses = self(**data)
         loss, log_vars = self._parse_losses(losses)
 
-        outputs = dict(
-            loss=loss, log_vars=log_vars, num_samples=len(data['img_metas']))
+        outputs = dict(loss=loss, log_vars=log_vars, num_samples=len(data["img_metas"]))
 
         return outputs
 
@@ -263,24 +273,25 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
         losses = self(**data)
         loss, log_vars = self._parse_losses(losses)
 
-        outputs = dict(
-            loss=loss, log_vars=log_vars, num_samples=len(data['img_metas']))
+        outputs = dict(loss=loss, log_vars=log_vars, num_samples=len(data["img_metas"]))
 
         return outputs
 
-    def show_result(self,
-                    img,
-                    result,
-                    score_thr=0.3,
-                    bbox_color=(72, 101, 241),
-                    text_color=(72, 101, 241),
-                    mask_color=None,
-                    thickness=2,
-                    font_size=13,
-                    win_name='',
-                    show=False,
-                    wait_time=0,
-                    out_file=None):
+    def show_result(
+        self,
+        img,
+        result,
+        score_thr=0.3,
+        bbox_color=(72, 101, 241),
+        text_color=(72, 101, 241),
+        mask_color=None,
+        thickness=2,
+        font_size=13,
+        win_name="",
+        show=False,
+        wait_time=0,
+        out_file=None,
+    ):
         """Draw `result` over `img`.
 
         Args:
@@ -311,10 +322,15 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
         """
         img = mmcv.imread(img)
         img = img.copy()
+        restored_image = None
         if isinstance(result, tuple):
-            bbox_result, segm_result = result
-            if isinstance(segm_result, tuple):
-                segm_result = segm_result[0]  # ms rcnn
+            segm_result = None
+            if len(result) == 2:
+                bbox_result, segm_result = result
+                if isinstance(segm_result, tuple):
+                    segm_result = segm_result[0]  # ms rcnn
+            else:
+                bbox_result, restored_image, _ = result
         else:
             bbox_result, segm_result = result, None
         bboxes = np.vstack(bbox_result)
@@ -350,11 +366,55 @@ class BaseDetector(BaseModule, metaclass=ABCMeta):
             win_name=win_name,
             show=show,
             wait_time=wait_time,
-            out_file=out_file)
+            out_file=out_file,
+        )
+        if restored_image is not None:
+            mean = np.array([123.675, 116.28, 103.53]) / 255.0
+            std = np.array([58.395, 57.12, 57.375]) / 255.0
+
+            restored_np = restored_image.detach().cpu().numpy()  # shape: (C, H, W)
+            restored_np = np.transpose(restored_np, (1, 2, 0))  # (H, W, C)
+            restored_np = restored_np[..., ::-1]
+            restored_np = restored_np * std + mean  # обратная нормализация
+            restored_np = (restored_np * 255).clip(0, 255).astype(np.uint8)
+            if out_file is not None:
+                base, ext = os.path.splitext(out_file)
+                restored_out_file = f"{base}_restored{ext}"
+            else:
+                restored_out_file = None
+
+            orig_h, orig_w = img.shape[:2]
+            rest_h, rest_w = restored_np.shape[:2]
+            scale_x = rest_w / orig_w
+            scale_y = rest_h / orig_h
+
+            # Масштабируем координаты bbox'ов (формат: [x1, y1, x2, y2])
+            scaled_bboxes = bboxes.copy()
+            scaled_bboxes[:, 0::2] *= scale_x  # x1, x2
+            scaled_bboxes[:, 1::2] *= scale_y  # y1, y2
+
+            restored = imshow_det_bboxes(
+                restored_np,
+                scaled_bboxes,
+                labels,
+                segms,
+                class_names=self.CLASSES,
+                score_thr=score_thr,
+                bbox_color=bbox_color,
+                text_color=text_color,
+                mask_color=mask_color,
+                thickness=thickness,
+                font_size=font_size,
+                win_name=win_name,
+                show=show,
+                wait_time=wait_time,
+                out_file=restored_out_file,
+            )
 
         if not (show or out_file):
             return img
 
     def onnx_export(self, img, img_metas):
-        raise NotImplementedError(f'{self.__class__.__name__} does '
-                                  f'not support ONNX EXPORT')
+        raise NotImplementedError(
+            f"{self.__class__.__name__} does " f"not support ONNX EXPORT"
+        )

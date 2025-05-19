@@ -70,7 +70,7 @@ model = dict(
                         embed_dims=256,
                         dropout=0.0,
                     ),
-                    feedforward_channels=2048,
+                    feedforward_channels=1024,
                     ffn_dropout=0.0,
                     operation_order=("self_attn", "norm", "ffn", "norm"),
                 ),
@@ -95,7 +95,7 @@ model = dict(
                             dropout=0.0,
                         ),
                     ],
-                    feedforward_channels=2048,
+                    feedforward_channels=1024,
                     ffn_dropout=0.0,
                     operation_order=(
                         "self_attn",
@@ -185,7 +185,6 @@ model = dict(
             ),
         ),
     ],
-    # model training and testing settings
     train_cfg=[
         dict(
             assigner=dict(
@@ -287,7 +286,14 @@ train_pipeline = [
     dict(type="Normalize", **img_norm_cfg),
     dict(type="Pad", size_divisor=32),
     dict(type="DefaultFormatBundle"),
-    dict(type="Collect", keys=["img", "gt_bboxes", "gt_labels"]),
+    dict(
+        type="Collect",
+        keys=[
+            "img",
+            "gt_bboxes",
+            "gt_labels",
+        ],
+    ),
 ]
 # test_pipeline, NOTE the Pad's size_divisor is different from the default
 # setting (size_divisor=32). While there is little effect on the performance
@@ -316,7 +322,6 @@ data = dict(
     val=dict(pipeline=test_pipeline),
     test=dict(pipeline=test_pipeline),
 )
-# optimizer
 optimizer = dict(
     type="AdamW",
     lr=2e-4,

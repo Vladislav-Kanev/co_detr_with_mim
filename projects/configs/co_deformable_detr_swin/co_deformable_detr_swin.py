@@ -1,13 +1,16 @@
-_base_ = ["co_deformable_detr_r50_1x_coco.py"]
+_base_ = ["co_deformable_detr_r50.py"]
 pretrained = "models/swin_small_patch4_window7_224.pth"
 # model settings
+
+num_dec_layer = 2
+
 model = dict(
     backbone=dict(
         _delete_=True,
         type="SwinTransformerV1",
-        embed_dim=96,
-        depths=[2, 2, 18, 2],
-        num_heads=[3, 6, 12, 24],
+        embed_dim=64,
+        depths=[2, 2, 6, 2],
+        num_heads=[2, 4, 8, 16],
         out_indices=(1, 2, 3),
         window_size=7,
         ape=False,
@@ -16,7 +19,7 @@ model = dict(
         use_checkpoint=False,
         pretrained=pretrained,
     ),
-    neck=dict(in_channels=[96 * 2, 96 * 4, 96 * 8]),
+    neck=dict(in_channels=[128, 256, 512]),
 )
 
 # optimizer
