@@ -15,12 +15,14 @@ class MaskImage:
         mask_value=0,
         return_mask=False,
         save_mask_as="mask",
+        iou_threshold=0.5,
     ):
         self.patch_size = patch_size
         self.mask_percent = mask_percent
         self.mask_value = mask_value
         self.return_mask = return_mask
         self.save_mask_as = save_mask_as
+        self.iou_threshold = iou_threshold
 
     def __call__(self, results):
         img = results["img"].copy()
@@ -35,10 +37,15 @@ class MaskImage:
 
         if seg_mask is not None and bboxes is not None:
             keep_indices = self._filter_boxes_by_iou(seg_mask, mask)
-            bboxes, seg_mask = bboxes[keep_indices], seg_mask[keep_indices]
+            bboxes, seg_mask, labels = (
+                bboxes[keep_indices],
+                seg_mask[keep_indices],
+                results["gt_labels"][keep_indices],
+            )
 
             results["gt_bboxes"] = bboxes
             results["gt_masks"] = seg_mask
+            results["gt_labels"] = labels
 
         results["img"] = masked_img
 
@@ -67,7 +74,7 @@ class MaskImage:
     def _filter_boxes_by_iou(self, masks, mask_map):
         keep = []
         for i in range(len(masks)):
-            obj_mask = masks[i].numpy().astype(bool)
+            obj_mask = masks.masks[i].astype(bool)
             intersection = np.logical_and(obj_mask, mask_map == 0).sum()
             iou = intersection / (obj_mask.sum() + 1e-6)
             if iou <= self.iou_threshold:

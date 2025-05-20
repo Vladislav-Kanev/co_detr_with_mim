@@ -838,12 +838,16 @@ class CocoDataset(CustomDataset):
         coco_gt = self.coco
         self.cat_ids = coco_gt.get_cat_ids(cat_names=self.CLASSES)
 
+        psnr_res = None
+
         if isinstance(results[0], tuple) and len(results[0]) == 3:
             mim_metric = []
             result = []
             for boxes, reconstructed_image, clear_image in results:
                 mim_metric.append(psnr(reconstructed_image, clear_image).cpu())
                 result.append(boxes)
+
+            psnr_res = np.mean(mim_metric)
 
         result_files, tmp_dir = self.format_results(results, jsonfile_prefix)
         eval_results = self.evaluate_det_segm(
@@ -858,7 +862,8 @@ class CocoDataset(CustomDataset):
             metric_items,
         )
 
-        eval_results["psnr"] = np.mean(mim_metric)
+        if psnr_res is not None:
+            eval_results["psnr"] = np.mean(mim_metric)
 
         if tmp_dir is not None:
             tmp_dir.cleanup()
