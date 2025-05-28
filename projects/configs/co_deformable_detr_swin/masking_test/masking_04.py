@@ -297,7 +297,6 @@ train_pipeline = [
         keys=["img", "clear_image", "gt_bboxes", "gt_labels", "gt_masks"],
     ),
 ]
-
 test_pipeline = [
     dict(type="LoadImageFromFile"),
     dict(

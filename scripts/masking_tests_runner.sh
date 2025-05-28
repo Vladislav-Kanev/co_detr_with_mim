@@ -59,3 +59,11 @@ for i in $(seq 0 2 8); do
 done
 
 # PYTHONPATH={pwd} python tools/test.py projects/configs/co_deformable_detr_swin/co_deformable_detr_swin.py work_dirs/swin_baseline_masked/epoch_6.pth --work-dir work_dirs/swin_baseline_masked/ --eval bbox --show-dir work_dirs/swin_baseline_masked/result
+
+   echo "Masked 1"    
+    PYTHONPATH=$(pwd) python tools/test.py \
+    projects/configs/co_deformable_detr_mim/masking_test/masking_04.py \
+    work_dirs/mim_with_swin_improved_mim_masking/epoch_6.pth \
+    --work-dir work_dirs/mim_with_swin_improved_mim_masking/restoration_test \
+    --eval bbox \
+    --show-dir work_dirs/mim_with_swin_improved_mim_masking/restoration_test/result"
