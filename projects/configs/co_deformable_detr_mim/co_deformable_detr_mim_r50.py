@@ -294,21 +294,24 @@ train_pipeline = [
     dict(type="Normalize", **img_norm_cfg),
     dict(type="Pad", size_divisor=32),
     dict(type="CopyImage", dst_key="clear_image"),
-    dict(type="MaskImage", patch_size=(16, 16), mask_percent=0.4, mask_value=127),
+    dict(
+        type="MaskImage",
+        patch_size=(8, 8),
+        mask_percent=0.1,
+        mask_value=127,
+        p=0.4,
+    ),
     dict(type="DefaultFormatBundle"),
     dict(
         type="Collect",
-        keys=[
-            "img",
-            "clear_image",
-            "gt_bboxes",
-            "gt_labels",
-        ],
+        keys=["img", "clear_image", "gt_bboxes", "gt_labels", "gt_masks"],
     ),
 ]
 # test_pipeline, NOTE the Pad's size_divisor is different from the default
 # setting (size_divisor=32). While there is little effect on the performance
 # whether we use the default setting or use size_divisor=1.
+
+# MASKED
 test_pipeline = [
     dict(type="LoadImageFromFile"),
     dict(
@@ -322,17 +325,39 @@ test_pipeline = [
             dict(type="Pad", size_divisor=1),
             dict(type="CopyImage", dst_key="clear_image"),
             dict(
-                type="MaskImage", patch_size=(16, 16), mask_percent=0.4, mask_value=127
+                type="MaskImage",
+                patch_size=(16, 16),
+                mask_percent=0.8,
+                mask_value=127,
+                p=1,
+                filter_labels=False,
             ),
             dict(type="ImageToTensor", keys=["img", "clear_image"]),
             dict(type="Collect", keys=["img", "clear_image"]),
         ],
     ),
 ]
+# CLAER
+# test_pipeline = [
+#     dict(type="LoadImageFromFile"),
+#     dict(
+#         type="MultiScaleFlipAug",
+#         img_scale=(512, 512),
+#         flip=False,
+#         transforms=[
+#             dict(type="Resize", keep_ratio=True),
+#             dict(type="RandomFlip"),
+#             dict(type="Normalize", **img_norm_cfg),
+#             dict(type="Pad", size_divisor=1),
+#             dict(type="ImageToTensor", keys=["img"]),
+#             dict(type="Collect", keys=["img"]),
+#         ],
+#     ),
+# ]
 
 data = dict(
-    samples_per_gpu=6,
-    workers_per_gpu=2,
+    samples_per_gpu=4,
+    workers_per_gpu=9,
     train=dict(filter_empty_gt=False, pipeline=train_pipeline),
     val=dict(pipeline=test_pipeline),
     test=dict(pipeline=test_pipeline),
@@ -352,4 +377,4 @@ optimizer = dict(
 optimizer_config = dict(grad_clip=dict(max_norm=0.1, norm_type=2))
 # learning policy
 lr_config = dict(policy="step", step=[11])
-runner = dict(type="EpochBasedRunner", max_epochs=12)
+runner = dict(type="EpochBasedRunner", max_epochs=6)

@@ -1,6 +1,8 @@
 # mmdet/datasets/pipelines/mask_image.py
 import numpy as np
 from typing import Tuple
+
+import torch
 from mmdet.datasets.builder import PIPELINES
 
 MASK_VALUE = 0  # Или любой другой цвет (например, 127 для серого)
@@ -16,6 +18,8 @@ class MaskImage:
         return_mask=False,
         save_mask_as="mask",
         iou_threshold=0.5,
+        p=0.5,
+        filter_labels=True,
     ):
         self.patch_size = patch_size
         self.mask_percent = mask_percent
@@ -23,8 +27,13 @@ class MaskImage:
         self.return_mask = return_mask
         self.save_mask_as = save_mask_as
         self.iou_threshold = iou_threshold
+        self.p = p
+        self.filter_labels = filter_labels
 
     def __call__(self, results):
+        # print(self.p)
+        # if torch.rand(1).item() < self.p:
+        #     return results
         img = results["img"].copy()
 
         seg_mask = results.get("gt_masks", None)
@@ -35,7 +44,11 @@ class MaskImage:
         if self.return_mask:
             results[self.save_mask_as] = mask
 
+        if not self.filter_labels:
+            return results
+
         if seg_mask is not None and bboxes is not None:
+            # print("mask image")
             keep_indices = self._filter_boxes_by_iou(seg_mask, mask)
             bboxes, seg_mask, labels = (
                 bboxes[keep_indices],
@@ -55,14 +68,23 @@ class MaskImage:
         self,
         image: np.ndarray,
     ):
-        assert 0 <= self.mask_percent <= 1, "mask_percent must be between 0 and 1"
+        # assert 0 <= self.mask_percent <= 1, "mask_percent must be between 0 and 1"
 
         masked_image = np.copy(image)
         H, W = image.shape[:2]
         ph, pw = self.patch_size
         patches = [(i, j) for i in range(0, H, ph) for j in range(0, W, pw)]
         np.random.shuffle(patches)
-        masked_patches = patches[: int(round(self.mask_percent * len(patches)))]
+
+        if isinstance(self.mask_percent, tuple):
+            mask_percent = (
+                self.mask_percent[0]
+                + (self.mask_percent[1] - self.mask_percent[0]) * torch.rand(1).item()
+            )
+        else:
+            mask_percent = self.mask_percent
+
+        masked_patches = patches[: int(round(mask_percent * len(patches)))]
 
         mask = np.ones((H, W), dtype=np.uint8)
         for i, j in masked_patches:

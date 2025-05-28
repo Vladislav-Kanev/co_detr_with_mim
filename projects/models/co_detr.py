@@ -536,6 +536,9 @@ class CoDETR(BaseDetector):
                 else x[0]
             )
             recon = self.mim_head(feat, output_size=img.shape[-2:])
+            if recon is None:
+                return bbox_results
+
             return list(
                 zip(
                     bbox_results,

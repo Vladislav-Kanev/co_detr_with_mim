@@ -38,6 +38,7 @@ from .sparse_roi_head import SparseRoIHead
 from .standard_roi_head import StandardRoIHead
 from .trident_roi_head import TridentRoIHead
 from .sim_mim_head import SimMIMStyleHead
+from .improved_mim_head import ImprovedSimMIMHead
 
 __all__ = [
     "BaseRoIHead",
@@ -77,4 +78,5 @@ __all__ = [
     "FeatureRelayHead",
     "GlobalContextHead",
     "SimMIMStyleHead",
+    "ImprovedSimMIMHead",
 ]
