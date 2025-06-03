@@ -399,7 +399,10 @@ class CocoDataset(CustomDataset):
                     data["image_id"] = img_id
                     data["bbox"] = self.xyxy2xywh(bboxes[i])
                     data["score"] = float(bboxes[i][4])
-                    data["category_id"] = self.cat_ids[label]
+                    try:
+                        data["category_id"] = self.cat_ids[label]
+                    except IndexError:
+                        print(label, len(self.cat_ids))
                     json_results.append(data)
         return json_results
 
@@ -696,7 +699,8 @@ class CocoDataset(CustomDataset):
             if metric_items is not None:
                 for metric_item in metric_items:
                     if metric_item not in coco_metric_names:
-                        raise KeyError(f"metric item {metric_item} is not supported")
+                        raise KeyError(
+                            f"metric item {metric_item} is not supported")
 
             if metric == "proposal":
                 cocoEval.params.useCats = 0
@@ -720,7 +724,8 @@ class CocoDataset(CustomDataset):
                     ]
 
                 for item in metric_items:
-                    val = float(f"{cocoEval.stats[coco_metric_names[item]]:.3f}")
+                    val = float(
+                        f"{cocoEval.stats[coco_metric_names[item]]:.3f}")
                     eval_results[item] = val
             else:
                 cocoEval.evaluate()
@@ -755,7 +760,8 @@ class CocoDataset(CustomDataset):
                         )
 
                     num_columns = min(6, len(results_per_category) * 2)
-                    results_flatten = list(itertools.chain(*results_per_category))
+                    results_flatten = list(
+                        itertools.chain(*results_per_category))
                     headers = ["category", "AP"] * (num_columns // 2)
                     results_2d = itertools.zip_longest(
                         *[results_flatten[i::num_columns] for i in range(num_columns)]
@@ -777,7 +783,8 @@ class CocoDataset(CustomDataset):
 
                 for metric_item in metric_items:
                     key = f"{metric}_{metric_item}"
-                    val = float(f"{cocoEval.stats[coco_metric_names[metric_item]]:.3f}")
+                    val = float(
+                        f"{cocoEval.stats[coco_metric_names[metric_item]]:.3f}")
                     eval_results[key] = val
                 ap = cocoEval.stats[:6]
                 eval_results[f"{metric}_mAP_copypaste"] = (
@@ -790,7 +797,7 @@ class CocoDataset(CustomDataset):
     def evaluate(
         self,
         results,
-        metric="bbox",
+        metric="proposal",
         logger=None,
         jsonfile_prefix=None,
         classwise=False,
@@ -859,7 +866,9 @@ class CocoDataset(CustomDataset):
             classwise,
             proposal_nums,
             iou_thrs,
-            metric_items,
+            ['AR@100', 'AR@300',
+                'AR@1000', 'AR_s@1000', 'AR_m@1000', 'AR_l@1000', 'mAP', 'mAP_50', 'mAP_75',
+                'mAP_s', 'mAP_m', 'mAP_l'],
         )
 
         if psnr_res is not None:

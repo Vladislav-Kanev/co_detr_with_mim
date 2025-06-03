@@ -1,0 +1,2 @@
+PYTHONPATH={pwd} python tools/test.py projects/configs/co_deformable_detr_swin/tests/occlusion.py work_dirs/swin_baseline/epoch_6.pth --work-dir work_dirs/swin_baseline/occlusion --eval bbox --show-dir work_dirs/swin_baseline/occlusion/result
+PYTHONPATH={pwd} python tools/test.py projects/configs/co_deformable_detr_mim/tests/occlusion.py work_dirs/mim_with_swin_improved_mim_weight05/epoch_6.pth --work-dir work_dirs/mim_with_swin_improved_mim_weight05/occlusion --eval bbox --show-dir work_dirs/mim_with_swin_improved_mim_weight05/occlusion/result

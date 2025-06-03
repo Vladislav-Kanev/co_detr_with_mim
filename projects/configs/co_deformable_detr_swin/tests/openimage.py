@@ -1,21 +1,26 @@
-_base_ = ["../_base_/datasets/coco_detection.py",
-          "../_base_/default_runtime.py"]
+
+_base_ = ["../../_base_/datasets/open_images.py",
+          "../../_base_/default_runtime.py"]
 # model settings
 num_dec_layer = 3
+pretrained = "models/swin_small_patch4_window7_224.pth"
+
 lambda_2 = 2.0
 
 model = dict(
     type="CoDETR",
     backbone=dict(
-        type="ResNet",
-        depth=34,
-        num_stages=4,
+        type="SwinTransformerV1",
+        embed_dim=64,
+        depths=[2, 2, 6, 2],
+        num_heads=[2, 4, 8, 16],
         out_indices=(1, 2, 3),
-        frozen_stages=1,
-        norm_cfg=dict(type="BN", requires_grad=False),
-        norm_eval=True,
-        style="pytorch",
-        init_cfg=dict(type="Pretrained", checkpoint="torchvision://resnet50"),
+        window_size=7,
+        ape=False,
+        drop_path_rate=0.2,
+        patch_norm=True,
+        use_checkpoint=False,
+        pretrained=pretrained,
     ),
     neck=dict(
         type="ChannelMapper",
@@ -189,13 +194,6 @@ model = dict(
             ),
         ),
     ],
-    # MIM head
-    mim_head=dict(
-        type="SimMIMStyleHead",
-        in_channels=256,
-        patch_size=16,
-        loss=dict(type="L1Loss", loss_weight=1.0),
-    ),
     # model training and testing settings
     train_cfg=[
         dict(
@@ -285,64 +283,68 @@ model = dict(
         # e.g., nms=dict(type='soft_nms', iou_threshold=0.5, min_score=0.05)
     ],
 )
-
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True
 )
 # train_pipeline, NOTE the img_scale and the Pad's size_divisor is different
 # from the default setting in mmdet.
 train_pipeline = [
-    dict(type='LoadImageFromFile'),
-    dict(type='LoadAnnotations', with_bbox=True, with_mask=True),
-    dict(type='RandomFlip', flip_ratio=0.5),
-    dict(type='Resize', img_scale=(512, 512), keep_ratio=True),
-    dict(
-        type='Normalize',
-        mean=[123.675, 116.28, 103.53],
-        std=[58.395, 57.12, 57.375],
-        to_rgb=True),
-    dict(type='Pad', size_divisor=32),
-    dict(type='CopyImage', dst_key='clear_image'),
-    dict(
-        type='MaskImage',
-        patch_size=(8, 8),
-        mask_percent=0.4,
-        mask_value=127,
-        p=0.5),
-    dict(type='DefaultFormatBundle'),
-    dict(
-        type='Collect',
-        keys=['img', 'clear_image', 'gt_bboxes', 'gt_labels', 'gt_masks'])
-]
-# test_pipeline, NOTE the Pad's size_divisor is different from the default
-# setting (size_divisor=32). While there is little effect on the performance
-# whether we use the default setting or use size_divisor=1.
+    dict(type="LoadImageFromFile"),
+    dict(type="LoadAnnotations", with_bbox=True, with_mask=True),
+    dict(type="RandomFlip", flip_ratio=0.5),
+    dict(type="Resize", img_scale=(512, 512), keep_ratio=True),
+    dict(type="Normalize", **img_norm_cfg),
+    dict(type="Pad", size_divisor=32),
+    dict(type="CopyImage", dst_key="clear_image"),
 
-# MASKED
-# test_pipeline = [
-#     dict(type="LoadImageFromFile"),
-#     dict(
-#         type="MultiScaleFlipAug",
-#         img_scale=(512, 512),
-#         flip=False,
-#         transforms=[
-#             dict(type="Resize", keep_ratio=True),
-#             dict(type="RandomFlip"),
-#             dict(type="Normalize", **img_norm_cfg),
-#             dict(type="Pad", size_divisor=1),
-#             dict(type="CopyImage", dst_key="clear_image"),
-#             dict(
-#         type='PhotoMetricDistortion',
-#         brightness_delta=32,
-#         contrast_range=(0.5, 1.5),
-#         saturation_range=(0.5, 1.5),
-#         hue_delta=18),
-#             dict(type="ImageToTensor", keys=["img", "clear_image"]),
-#             dict(type="Collect", keys=["img", "clear_image"]),
-#         ],
-#     ),
-# ]
-# CLAER
+    dict(type="DefaultFormatBundle"),
+    dict(
+        type="Collect",
+        keys=["img", "clear_image", "gt_bboxes", "gt_labels", "gt_masks"],
+    ),
+]
+
+albu_train_transforms = [
+    dict(
+        type='ShiftScaleRotate',
+        shift_limit=0.0625,
+        scale_limit=0.0,
+        rotate_limit=0,
+        interpolation=1,
+        p=0.5),
+    dict(
+        type='RandomBrightnessContrast',
+        brightness_limit=[0.1, 0.3],
+        contrast_limit=[0.1, 0.3],
+        p=0.2),
+    dict(
+        type='OneOf',
+        transforms=[
+            dict(
+                type='RGBShift',
+                r_shift_limit=10,
+                g_shift_limit=10,
+                b_shift_limit=10,
+                p=1.0),
+            dict(
+                type='HueSaturationValue',
+                hue_shift_limit=20,
+                sat_shift_limit=30,
+                val_shift_limit=20,
+                p=1.0)
+        ],
+        p=0.1),
+    dict(type='JpegCompression', quality_lower=85, quality_upper=95, p=0.2),
+    dict(type='ChannelShuffle', p=0.1),
+    dict(
+        type='OneOf',
+        transforms=[
+            dict(type='Blur', blur_limit=3, p=1.0),
+            dict(type='MedianBlur', blur_limit=3, p=1.0)
+        ],
+        p=0.1),
+]
+
 test_pipeline = [
     dict(type="LoadImageFromFile"),
     dict(
@@ -359,6 +361,7 @@ test_pipeline = [
         ],
     ),
 ]
+
 
 data = dict(
     samples_per_gpu=4,

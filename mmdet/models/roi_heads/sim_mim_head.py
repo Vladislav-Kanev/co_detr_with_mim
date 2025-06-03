@@ -10,15 +10,21 @@ class SimMIMStyleHead(nn.Module):
         in_channels=768,
         patch_size=16,
         use_backbone=False,
+        training_only=True,
+
         loss=dict(type="L1Loss", loss_weight=1.0),
     ):
         super().__init__()
         self.patch_size = patch_size
         self.linear = nn.Linear(in_channels, patch_size * patch_size * 3)
         self.loss_fn = build_loss(loss)
+        self.training_only = training_only
+
         self.use_backbone = use_backbone
 
     def forward(self, x, output_size=None):
+        if not self.training and self.training_only:
+            return None
         # print(f"SimMIMStyleHead: {[i.shape for i in x]}")
         B, C, H, W = x.shape  # [B, C, H, W]
         num_patches_h = H
